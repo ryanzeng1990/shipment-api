@@ -33,10 +33,10 @@ lint: ## Run PHPCs checks
 	docker compose run --rm php ./vendor/bin/phpcbf
 
 code-coverage: ## Run PHPUnit Test (Unit + Functional) + code coverage
-	docker compose run -e XDEBUG_MODE=coverage --rm php ./vendor/bin/phpunit --coverage-html ./tests/Coverage --testsuite Unit,Functional
+	docker compose run -e XDEBUG_MODE=coverage --rm php ./vendor/bin/phpunit --coverage-html ./tests/Coverage --testsuite Unit,Feature
 
 tests-coverage-txt: ## Run PHPUnit Test (Unit + Functional) + code coverage
-	docker compose run -e XDEBUG_MODE=coverage --rm php ./vendor/bin/phpunit --coverage-text --testsuite Unit,Functional
+	docker compose run -e XDEBUG_MODE=coverage --rm php ./vendor/bin/phpunit --coverage-text --testsuite Unit,Feature
 
 validations: phpstan phpcs lint ## Run PHPStan + PHPCs checks
 
