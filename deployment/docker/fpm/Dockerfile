@@ -4,7 +4,13 @@ COPY ./deployment/docker/fpm/php.ini /usr/local/etc/php/conf.d/docker-php-config
 
 COPY . .
 
-RUN mkdir -p /var/www/storage && chown -R www-data:www-data /var/www/storage
+# By default, use file caching during build as redis will not be available yet
+ARG CACHE_DRIVER=file
+
+# RUN chown -R www-data:www-data /var/www
+RUN chown -R www-data:www-data \
+ /var/www/storage \
+ /var/www/bootstrap/cache
 
 # dev target
 FROM php as php-dev
