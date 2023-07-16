@@ -15,10 +15,10 @@ class HealthCheckServiceProvider extends ServiceProvider
 
     public function register()
     {
-        if(!$this->loadWhen()) {
+        if (!$this->loadWhen()) {
             return ;
         }
 
-        $this->loadRoutesFrom(__DIR__.'/../route.php');
+        $this->loadRoutesFrom(__DIR__ . '/../route.php');
     }
 }

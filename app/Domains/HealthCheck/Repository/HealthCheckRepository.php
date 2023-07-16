@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Log;
 
 class HealthCheckRepository implements HealthCheckRepositoryInterface
 {
-
     public function isDbConnected(): bool
     {
         try {
