@@ -1,0 +1,95 @@
+name: Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Environment
+        options:
+          - dev
+          - prod
+jobs:
+  cd:
+    name: Deployment
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ vars.AWS_ADM_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_ADM_SECRET }}
+          aws-region: ${{ vars.AWS_DEFAULT_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@aaf69d68aa3fb14c1d5a6be9ac61fe15b48453a2
+
+      - name: Configure K8S access
+        id: k8s-access
+        run: |
+          aws eks update-kubeconfig --region ${{vars.AWS_DEFAULT_REGION}} --name ${{vars.K8S_CLUSTER}}
+
+      - name: Install dependencies
+        uses: php-actions/composer@v6
+        with:
+          args: --prefer-dist --no-progress --no-dev --no-scripts
+
+      - name: Build, tag, and push APP image to Amazon ECR
+        id: build-app-image
+        uses: Ofload-2-0/infrastructure/github/actions/docker-container-to-aws-ecr@main
+        with:
+          env: ${{ inputs.environment }}
+          ecr-registry: ${{steps.login-ecr.outputs.registry}}
+          ecr-repository: shipment-app
+          image-tag: ${{github.sha}}
+          dockerfile-path: deployment/docker/fpm/Dockerfile
+          target: php
+
+      - name: Build, tag, and push nginx image to Amazon ECR
+        id: build-nginx-image
+        uses: Ofload-2-0/infrastructure/github/actions/docker-container-to-aws-ecr@main
+        with:
+          env: ${{ inputs.environment }}
+          ecr-registry: ${{steps.login-ecr.outputs.registry}}
+          ecr-repository: shipment-nginx
+          image-tag: ${{github.sha}}
+          dockerfile-path: deployment/docker/nginx/Dockerfile
+
+      - name: Helm Version
+        run: helm version
+
+      - name: Helm Lint
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          helm lint \
+            --set commit=$IMAGE_TAG \
+            --set app.image.tag=$IMAGE_TAG \
+            --set nginx.image.tag=$IMAGE_TAG \
+            --set vars.aws.key="${{ vars.AWS_ADM_KEY }}" \
+            --set vars.aws.secret="${{ secrets.AWS_ADM_SECRET }}" \
+            --set vars.newrelic.key="${{ secrets.NEWRELIC_KEY }}" \
+            --set vars.postgres.db.password="${{ secrets.DB_PASSWORD }}" \
+            -f ./deployment/helm-values/${{ inputs.environment }}.yaml \
+            ./deployment/helm-chart
+
+      - name: Deployment
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          helm upgrade --install shipment \
+            -n shipment \
+            --set commit=$IMAGE_TAG \
+            --set app.image.tag=$IMAGE_TAG \
+            --set nginx.image.tag=$IMAGE_TAG \
+            --set vars.aws.key="${{ vars.AWS_ADM_KEY }}" \
+            --set vars.aws.secret="${{ secrets.AWS_ADM_SECRET }}" \
+            --set vars.newrelic.key="${{ secrets.NEWRELIC_KEY }}" \
+            --set vars.postgres.db.password="${{ secrets.DB_PASSWORD }}" \
+            -f ./deployment/helm-values/${{ inputs.environment }}.yaml \
+            ./deployment/helm-chart

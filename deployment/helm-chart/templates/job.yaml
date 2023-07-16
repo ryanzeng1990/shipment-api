@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Chart.Name }}-migration
+  annotations:
+    ofload.io/commit: "{{ $.Values.commit }}"
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}-migration
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          command: [ "/bin/ash", "-c", "--" ]
+          args:
+            - php artisan migrate
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          env:
+            {{- include "shipment.app.variables" . | nindent 12 }}
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: "250m"
+            requests:
+              memory: 128Mi
+              cpu: "80m"
+      restartPolicy: Never

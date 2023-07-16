@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  php:
+    container_name: shipment-php
+    restart: unless-stopped
+    build:
+      context: ./
+      dockerfile: ./deployment/docker/fpm/Dockerfile
+      target: php-dev
+    platform: linux/amd64
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www/:cached
+      - php-fpm:/var/run
+    working_dir: /var/www/
+    depends_on:
+      postgresDb:
+        condition: service_healthy
+
+  nginx:
+    container_name: shipment-nginx
+    build:
+      context: ./
+      dockerfile: ./deployment/docker/nginx/Dockerfile
+      args:
+        FPM_HOST: php
+    volumes:
+      - .:/var/www/:cached
+    ports:
+      - "8997:80"
+    depends_on:
+      - php
+
+  postgresDb:
+    image: postgres:14.4
+    container_name: shipment-db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - '5437:5432'
+    environment:
+      POSTGRES_MULTIPLE_DATABASES: ${DB_DATABASE_TEST:-shipment_test},${DB_DATABASE:-shipment}
+      DEFAULT_DB: ${DB_DATABASE:-shipment}
+      POSTGRES_USER: ${DB_USERNAME:-shipment}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - ./database/local:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U $$POSTGRES_USER -d $$DEFAULT_DB'"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  php-fpm:

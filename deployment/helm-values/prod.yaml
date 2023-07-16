@@ -1,0 +1,10 @@
+replicaCount: 2
+domain: "shipment.ofload.net"
+
+env:
+  vars:
+    appEnv: "prod"
+    postgresDbHost: "prod-db.cczxoqsp5qxa.ap-southeast-1.rds.amazonaws.com"
+    postgresDbUser: "eosrw"
+    postgresDbPort: "5432"
+    postgresDbName: "shipment"
